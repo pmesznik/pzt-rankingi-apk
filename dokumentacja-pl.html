@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PZT Rankingi — Dokumentacja</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎾</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="lang-switch">
+      <a href="index.html">← Strona główna</a>
+      <a class="active" href="dokumentacja-pl.html">🇵🇱 Polski</a>
+      <a href="documentation-en.html">🇬🇧 English</a>
+    </div>
+    <div class="brand"><span class="emoji">🎾</span><h1>PZT Rankingi</h1></div>
+    <p class="subtitle">Offline aplikacja na Androida z rankingami Polskiego Związku Tenisowego (PZT) — dokumentacja techniczna.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="download-card">
+    <div class="info">
+      <div class="version-label">Najnowszy build</div>
+      <div class="version-value" id="version">—</div>
+      <div class="version-date" id="versionDate"></div>
+    </div>
+    <a class="btn-download" href="pzt-rankingi-latest.apk">⬇ Pobierz APK</a>
+  </div>
+
+  <div class="note">
+    Instalacja wymaga jednorazowego włączenia <strong>„Instaluj z nieznanych źródeł”</strong> dla przeglądarki/menedżera plików — aplikacja nie jest dystrybuowana przez Google Play. APK jest podpisany stałym kluczem produkcyjnym, więc każda nowa wersja aktualizuje poprzednią w miejscu — nie trzeba jej wcześniej odinstalowywać.
+  </div>
+
+  <h2 id="overview">Opis</h2>
+  <p>
+    PZT Rankingi to w pełni offline'owa aplikacja na Androida, która odzwierciedla i udostępnia dane rankingowe
+    publikowane przez Polski Związek Tenisowy (<a href="https://portal.pzt.pl" target="_blank" rel="noopener">portal.pzt.pl</a>) —
+    rankingi zawodników w kategoriach wiekowych, historię meczów, porównania head-to-head, kalendarz turniejów oraz
+    drabinki. Aplikacja powstała na potrzeby akademii tenisowej (Akademia Tenisowa Zabrze), żeby trenerzy i zawodnicy
+    mieli szybki dostęp do danych rankingowych bez konieczności stałego połączenia z internetem czy serwera w chmurze.
+  </p>
+  <p>
+    <span class="pill">Brak serwera w chmurze</span> Każde pobranie danych i cały stan aplikacji żyje wyłącznie na
+    telefonie. Aplikacja nie komunikuje się z żadnym własnym serwerem — jedynym zewnętrznym punktem kontaktu jest
+    publiczna strona PZT.
+  </p>
+
+  <h2 id="architecture">Architektura</h2>
+  <p>
+    Aplikacja to React SPA opakowane w <strong>Capacitor</strong>. Warstwa interfejsu powstała pierwotnie pod
+    backend w Pythonie (FastAPI); zamiast przepisywać cały interfejs od nowa, logikę backendu przeniesiono do
+    JavaScriptu działającego na telefonie i podpięto przez nakładkę na <code>fetch()</code> — dzięki temu te same
+    wywołania <code>fetch(`${API_BASE}/players/...`)</code>, które interfejs zawsze wykonywał, są dziś przechwytywane
+    lokalnie zamiast trafiać do sieci.
+  </p>
+  <div class="arch-diagram">Interfejs React (App.jsx)
+      │  fetch(`${API_BASE}/...`)
+      ▼
+  fetchShim.js  — podmienia globalny fetch()
+      │
+      ▼
+  localApi.js   — router ścieżek (dispatch), odwzorowuje dawne REST API
+      │
+      ├──▶ storage.js         — odczyt/zapis lokalnych plików JSON
+      │                          z rankingami (Capacitor Filesystem)
+      │
+      └──▶ src/native/pzt/*   — scrapery uruchamiane na żądanie, jeden
+              │                 moduł na typ danych (profil zawodnika,
+              │                  mecze, H2H, drabinki/plan gier/selekcja
+              │                  turnieju, ...)
+              ▼
+          CapacitorHttp       — natywne zapytanie HTTP, omija ograniczenia
+                                 CORS narzucane przez WebView
+              │
+              ▼
+          portal.pzt.pl       — odpowiedzi HTML, parsowane po stronie
+                                 aplikacji przez DOMParser</div>
+
+  <h3>Dlaczego nakładka na fetch(), a nie przepisanie interfejsu?</h3>
+  <p>
+    Ekran React (<code>App.jsx</code>, ok. 30 miejsc wywołań) mówił już czystym, REST-owym kontraktem do backendu
+    FastAPI. Przeniesienie logiki backendu do JavaScriptu i odpowiadanie na ten sam kontrakt lokalnie oznaczało,
+    że interfejs nie wymagał żadnych zmian — nowe są wyłącznie <code>fetchShim.js</code> i <code>localApi.js</code>.
+    Dzięki temu migracja do w pełni offline'owej aplikacji była niskiego ryzyka i przyrostowa: kolejne moduły
+    przenoszono i weryfikowano jeden po drugim, porównując wynik z oryginalną implementacją w Pythonie jako punktem
+    odniesienia.
+  </p>
+
+  <h2 id="stack">Stos technologiczny</h2>
+  <table>
+    <tr><th>Warstwa</th><th>Technologia</th></tr>
+    <tr><td>Interfejs</td><td>React 18 + Vite 5</td></tr>
+    <tr><td>Natywna powłoka</td><td>Capacitor 8 (Android)</td></tr>
+    <tr><td>Natywne zapytania sieciowe</td><td><code>@capacitor-community/http</code> / CapacitorHttp — omija ograniczenia CORS narzucane przez WebView</td></tr>
+    <tr><td>Magazyn danych na urządzeniu</td><td>Capacitor Filesystem API (<code>Directory.Data</code>), z podmienialnymi backendami dla Node (testy) i pamięci przeglądarki (podgląd developerski)</td></tr>
+    <tr><td>Parsowanie HTML</td><td><code>DOMParser</code> (przeglądarka/WebView) / <code>jsdom</code> (skrypty testowe Node)</td></tr>
+    <tr><td>CI / budowanie</td><td>GitHub Actions — podpisany APK produkcyjny, wersjonowany numerem przebiegu workflow</td></tr>
+    <tr><td>Implementacja referencyjna</td><td>Python + FastAPI (zostaje w repozytorium jako punkt odniesienia poprawności portu na JS, nie jest już wdrażana)</td></tr>
+  </table>
+
+  <h2 id="data">Model danych i scrapingu</h2>
+  <p>
+    Wszystkie dane rankingowe są pobierane bezpośrednio z publicznych stron PZT — nie ma tu żadnego kontraktu API
+    ze strony PZT, więc parsowanie podąża za aktualną strukturą HTML strony i jest utrzymywane wraz z jej zmianami.
+  </p>
+  <h3>Rankingi — cache'owane, odświeżane co miesiąc</h3>
+  <p>
+    Miesięczne migawki rankingów per kategoria/płeć (<code>U12</code> / <code>U14</code> / <code>U16</code> /
+    <code>U18</code> / <code>SENIOR</code> × <code>K</code>/<code>M</code>) są zapisywane jako osobne pliki JSON
+    (<code>{KATEGORIA}_{PŁEĆ}_{ROK}_{MIESIĄC}.json</code>) i indeksowane na żądanie. Aplikacja automatycznie sprawdza
+    dostępność nowych miesięcznych rankingów, a dodatkowo pozwala na import danych archiwalnych na żądanie.
+  </p>
+  <h3>Dane zawodników i turniejów — pobierane na żądanie, bez masowego pobierania</h3>
+  <p>
+    Historia meczów, statystyki head-to-head, kalendarz turniejów, drabinki/plany gier/listy selekcji nigdy
+    <strong>nie</strong> są pobierane masowo z góry. Każdy z tych zasobów jest pobierany dopiero, gdy konkretny
+    ekran go potrzebuje (np. otwarcie profilu zawodnika albo drabinki turnieju), z lekkim lokalnym cache'owaniem,
+    żeby unikać zbędnych powtórnych zapytań. Dzięki temu obciążenie serwerów PZT ze strony aplikacji jest
+    proporcjonalne do rzeczywistego użycia.
+  </p>
+  <h3>Eksport i import</h3>
+  <p>
+    Użytkownik może wyeksportować pełne archiwum rankingów do jednego pliku JSON przez systemowe menu „Udostępnij”
+    (na Dysk, e-mailem, na kartę SD, na inny telefon…) i zaimportować je z powrotem tą samą drogą — przydatne do
+    kopii zapasowych i przenoszenia danych na nowy telefon. Obejmuje to wyłącznie archiwum rankingów — ustawienia
+    per urządzenie (ulubieni, motyw) żyją w lokalnym magazynie przeglądarki i nie są częścią eksportu.
+  </p>
+
+  <h2 id="build">Budowanie i wydawanie</h2>
+  <p>Cały proces wydawania działa w GitHub Actions — nie jest potrzebny lokalny Android Studio:</p>
+  <ol>
+    <li><code>npm ci</code> — instalacja zależności JS</li>
+    <li><code>npm run build</code> — produkcyjny build Vite (<code>VITE_APP_VERSION</code> ustawiane na numer przebiegu workflow)</li>
+    <li><code>npx cap sync android</code> — synchronizacja builda webowego z projektem Android w Capacitorze</li>
+    <li>Odtworzenie klucza podpisującego z zaszyfrowanych sekretów GitHub</li>
+    <li><code>./gradlew assembleRelease</code> — budowa podpisanego APK produkcyjnego, z <code>versionCode</code>/<code>versionName</code> powiązanym z numerem przebiegu workflow</li>
+    <li>Dołączenie APK do prywatnego GitHub Release (pełna historia buildów, przechowywana bezterminowo) i publikacja najnowszego builda na tej stronie</li>
+  </ol>
+
+  <h3>Wersjonowanie</h3>
+  <p>
+    <code>versionCode</code> (liczba, którą Android wykorzystuje, żeby zdecydować czy dany build jest aktualizacją)
+    jest równy numerowi przebiegu workflow budującego w GitHub Actions — czyli rosnącej liczbie całkowitej,
+    inkrementowanej przy każdym uruchomieniu. To gwarantuje, że każde wydanie ma ściśle wyższy numer wersji, więc
+    instalacja nowego APK zawsze aktualizuje poprzednią wersję w miejscu.
+  </p>
+
+  <h3>Środowisko developerskie lokalnie</h3>
+  <pre><code>npm install
+npm run dev       # serwer developerski Vite, magazyn danych tylko w przeglądarce
+npm run build     # build produkcyjny → dist/
+npx cap sync android   # synchronizacja z natywnym projektem Android</code></pre>
+  <p>
+    Uwaga: poza natywną powłoką Android aplikacja korzysta z zapasowego magazynu w pamięci przeglądarki, a
+    zapytania sieciowe do portal.pzt.pl podlegają standardowym ograniczeniom CORS przeglądarki — niektóre ścieżki
+    scrapingu działają w pełni tylko na prawdziwym urządzeniu lub emulatorze, gdzie CapacitorHttp omija to
+    ograniczenie.
+  </p>
+
+  <h2 id="scope">Czego celowo nie ma w tej dokumentacji</h2>
+  <p>
+    Ta strona opisuje architekturę i działanie gotowej aplikacji z myślą o każdym, kto ją ocenia albo z nią
+    współpracuje. Kod źródłowy aplikacji znajduje się w prywatnym repozytorium — ta strona nie zawiera więc
+    przeglądu kodu, dokumentacji API moduł po module ani przewodnika dla kontrybutorów, ponieważ samo repozytorium
+    nie jest publiczne.
+  </p>
+
+  <footer>PZT Rankingi — stworzone dla Akademii Tenisowej Zabrze. Źródło danych: <a href="https://portal.pzt.pl" target="_blank" rel="noopener">portal.pzt.pl</a> (Polski Związek Tenisowy).</footer>
+</div>
+<script>
+  fetch("version.json").then(r => r.json()).then(v => {
+    document.getElementById("version").textContent = "v" + v.version;
+    document.getElementById("versionDate").textContent = v.date ? "Zbudowano " + v.date : "";
+  }).catch(() => {});
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PZT Rankingi</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎾</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="landing">
+    <span class="emoji">🎾</span>
+    <h1>PZT Rankingi</h1>
+    <p class="tagline">Offline aplikacja na Androida z rankingami tenisowymi PZT.<br>Offline Android app for Polish Tennis Association rankings.</p>
+    <div class="choices">
+      <a href="dokumentacja-pl.html"><span class="flag">🇵🇱</span>Dokumentacja po polsku</a>
+      <a href="documentation-en.html"><span class="flag">🇬🇧</span>Documentation in English</a>
+    </div>
+    <div class="download-card" style="max-width:420px">
+      <div class="info">
+        <div class="version-label">Najnowsza wersja / Latest version</div>
+        <div class="version-value" id="version">—</div>
+        <div class="version-date" id="versionDate"></div>
+      </div>
+      <a class="btn-download" id="downloadBtn" href="pzt-rankingi-latest.apk">⬇ Pobierz APK</a>
+    </div>
+  </div>
+  <script>
+    fetch("version.json").then(r => r.json()).then(v => {
+      document.getElementById("version").textContent = "v" + v.version;
+      document.getElementById("versionDate").textContent = v.date ? "Build: " + v.date : "";
+    }).catch(() => {});
+  </script>
+</body>
+</html>

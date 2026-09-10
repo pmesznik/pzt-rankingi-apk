@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PZT Rankingi — Documentation</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎾</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="lang-switch">
+      <a href="index.html">← Home</a>
+      <a href="dokumentacja-pl.html">🇵🇱 Polski</a>
+      <a class="active" href="documentation-en.html">🇬🇧 English</a>
+    </div>
+    <div class="brand"><span class="emoji">🎾</span><h1>PZT Rankingi</h1></div>
+    <p class="subtitle">Offline Android app for Polish Tennis Association (PZT) rankings — technical documentation.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="download-card">
+    <div class="info">
+      <div class="version-label">Latest build</div>
+      <div class="version-value" id="version">—</div>
+      <div class="version-date" id="versionDate"></div>
+    </div>
+    <a class="btn-download" href="pzt-rankingi-latest.apk">⬇ Download APK</a>
+  </div>
+
+  <div class="note">
+    Installing requires enabling <strong>"Install from unknown sources"</strong> for your browser/file manager once, since this isn't distributed via Google Play. The APK is signed with a stable release key, so it always updates in place — no need to uninstall the previous version first.
+  </div>
+
+  <h2 id="overview">Overview</h2>
+  <p>
+    PZT Rankingi is a fully offline Android application that mirrors and browses ranking data published by the
+    Polish Tennis Association (<a href="https://portal.pzt.pl" target="_blank" rel="noopener">portal.pzt.pl</a>) —
+    player rankings by age category, match history, head-to-head comparisons, tournament calendars and draws.
+    It was built for a tennis academy (Akademia Tenisowa Zabrze) to give coaches and players quick access to
+    ranking data without needing a live connection or a backend server.
+  </p>
+  <p>
+    <span class="pill">No cloud backend</span> Every data fetch and every piece of app state lives entirely on the
+    phone. There is no server this app talks to other than PZT's own public website.
+  </p>
+
+  <h2 id="architecture">Architecture</h2>
+  <p>
+    The app is a <strong>Capacitor</strong>-wrapped React single-page application. The UI layer was originally built
+    against a Python/FastAPI backend; rather than rewrite the UI, the backend was ported to on-device JavaScript and
+    wired in through a <code>fetch()</code> shim — so the same <code>fetch(`${API_BASE}/players/...`)</code> calls the
+    UI always made now get intercepted locally instead of going over the network.
+  </p>
+  <div class="arch-diagram">React UI (App.jsx)
+      │  fetch(`${API_BASE}/...`)
+      ▼
+  fetchShim.js  — installs a global fetch() override
+      │
+      ▼
+  localApi.js   — path router (dispatch), mirrors the old REST API shape
+      │
+      ├──▶ storage.js         — reads/writes cached ranking JSON files
+      │                          (Capacitor Filesystem on device)
+      │
+      └──▶ src/native/pzt/*   — on-demand scrapers, one module per data type
+              │                 (player profile, matches, H2H, tournament
+              │                  draws/schedule/acceptance lists, ...)
+              ▼
+          CapacitorHttp       — native HTTP request, bypasses WebView CORS
+              │
+              ▼
+          portal.pzt.pl       — HTML responses, parsed client-side with
+                                 DOMParser</div>
+
+  <h3>Why a fetch() shim instead of rewriting the UI?</h3>
+  <p>
+    The React screen (<code>App.jsx</code>, ~30 call sites) already spoke a clean REST-shaped contract to a FastAPI
+    backend. Porting the backend logic to JavaScript and answering that same contract locally meant the UI needed
+    zero changes — only <code>fetchShim.js</code> and <code>localApi.js</code> are new. This kept the migration to a
+    fully offline app low-risk and incremental: modules were ported and verified one endpoint at a time against the
+    original Python implementation as a reference.
+  </p>
+
+  <h2 id="stack">Tech stack</h2>
+  <table>
+    <tr><th>Layer</th><th>Technology</th></tr>
+    <tr><td>UI</td><td>React 18 + Vite 5</td></tr>
+    <tr><td>Native shell</td><td>Capacitor 8 (Android)</td></tr>
+    <tr><td>Native networking</td><td><code>@capacitor-community/http</code> / CapacitorHttp — bypasses WebView CORS restrictions</td></tr>
+    <tr><td>On-device storage</td><td>Capacitor Filesystem API (<code>Directory.Data</code>), with pluggable backends for Node (tests) and in-memory (browser dev preview)</td></tr>
+    <tr><td>HTML parsing</td><td><code>DOMParser</code> (browser/WebView) / <code>jsdom</code> (Node test scripts)</td></tr>
+    <tr><td>CI / builds</td><td>GitHub Actions — signed release APK, versioned by workflow run number</td></tr>
+    <tr><td>Reference implementation</td><td>Python + FastAPI (kept in the repo as a correctness reference for the JS port, no longer deployed)</td></tr>
+  </table>
+
+  <h2 id="data">Data &amp; scraping model</h2>
+  <p>
+    All ranking data is scraped directly from PZT's public pages — there is no API contract with PZT, so parsing
+    follows the site's current HTML structure and is maintained accordingly if that structure changes.
+  </p>
+  <h3>Rankings — cached, refreshed monthly</h3>
+  <p>
+    Monthly ranking snapshots per category/gender (<code>U12</code> / <code>U14</code> / <code>U16</code> /
+    <code>U18</code> / <code>SENIOR</code> × <code>K</code>/<code>M</code>) are stored as individual JSON files
+    (<code>{CATEGORY}_{GENDER}_{YEAR}_{MONTH}.json</code>) and indexed on demand. The app checks for new monthly
+    rankings automatically and also supports on-demand import of archival data.
+  </p>
+  <h3>Player &amp; tournament data — fetched on demand, no bulk crawling</h3>
+  <p>
+    Match history, head-to-head records, tournament calendars, draws/brackets, schedules and acceptance lists are
+    <strong>never</strong> pre-fetched in bulk. Each is scraped only when a specific screen requests it (e.g. opening
+    a player's profile, or a tournament's draw), with lightweight local caching to avoid redundant requests. This
+    keeps the app's footprint on PZT's servers proportional to actual usage.
+  </p>
+  <h3>Export &amp; import</h3>
+  <p>
+    Users can export the full ranking archive as a single JSON file via the native share sheet (to Drive, email, SD
+    card, another device, …) and re-import it the same way — useful for backups and moving data to a new phone. This
+    only covers ranking archive files; per-device preferences (favorites, theme) live in local storage and are not
+    included.
+  </p>
+
+  <h2 id="build">Building &amp; releasing</h2>
+  <p>The release pipeline runs entirely in GitHub Actions — no local Android Studio setup is required:</p>
+  <ol>
+    <li><code>npm ci</code> — install JS dependencies</li>
+    <li><code>npm run build</code> — Vite production build (<code>VITE_APP_VERSION</code> set to the workflow run number)</li>
+    <li><code>npx cap sync android</code> — sync the web build into the Capacitor Android project</li>
+    <li>Restore the release keystore from encrypted GitHub secrets</li>
+    <li><code>./gradlew assembleRelease</code> — build a signed release APK, with <code>versionCode</code>/<code>versionName</code> tied to the workflow run number</li>
+    <li>Attach the APK to a private GitHub Release (full build history, kept indefinitely) and publish the latest build to this page</li>
+  </ol>
+
+  <h3>Versioning</h3>
+  <p>
+    <code>versionCode</code> (the number Android uses to decide whether a build is an upgrade) equals GitHub's
+    workflow run number for the build workflow — a monotonically increasing integer, one per triggered run. This
+    guarantees every release strictly increases the version, so installing a new APK always upgrades in place.
+  </p>
+
+  <h3>Local development</h3>
+  <pre><code>npm install
+npm run dev       # Vite dev server, browser-only storage backend
+npm run build     # production build → dist/
+npx cap sync android   # sync into the native Android project</code></pre>
+  <p>
+    Note: outside the native Android shell, the app falls back to an in-memory/browser storage backend and network
+    requests to portal.pzt.pl are subject to normal browser CORS — some scraping flows only work end-to-end on a
+    real device or emulator, where CapacitorHttp bypasses that restriction.</p>
+
+  <h2 id="scope">What this documentation intentionally doesn't cover</h2>
+  <p>
+    This page describes the shipped application's architecture and behavior for anyone evaluating or working
+    alongside it. The application's source code lives in a private repository — this site does not include a code
+    walkthrough, module-by-module API reference, or contribution guide, since the repository itself isn't public.
+  </p>
+
+  <footer>PZT Rankingi — built for Akademia Tenisowa Zabrze. Data source: <a href="https://portal.pzt.pl" target="_blank" rel="noopener">portal.pzt.pl</a> (Polish Tennis Association).</footer>
+</div>
+<script>
+  fetch("version.json").then(r => r.json()).then(v => {
+    document.getElementById("version").textContent = "v" + v.version;
+    document.getElementById("versionDate").textContent = v.date ? "Built " + v.date : "";
+  }).catch(() => {});
+</script>
+</body>
+</html>
