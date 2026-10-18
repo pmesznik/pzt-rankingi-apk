@@ -53,6 +53,7 @@ header.top .wrap { padding-bottom: 0; }
 }
 
 .brand .emoji { font-size: 32px; }
+.brand img.logo { width: 40px; height: 40px; flex-shrink: 0; }
 
 .brand h1 {
   font-size: 26px;
@@ -265,6 +266,7 @@ footer {
   padding: 40px 20px;
 }
 .landing .emoji { font-size: 56px; margin-bottom: 6px; }
+.landing img.logo { width: 96px; height: 96px; margin-bottom: 10px; }
 .landing h1 { font-size: 30px; font-weight: 900; margin: 0 0 8px; }
 .landing p.tagline { color: var(--text-sub); margin: 0 0 32px; max-width: 420px; }
 .landing .choices { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 28px; }

@@ -4,7 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PZT Rankingi — Documentation</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎾</text></svg>">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#13284A">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,7 +18,7 @@
       <a href="dokumentacja-pl.html">🇵🇱 Polski</a>
       <a class="active" href="documentation-en.html">🇬🇧 English</a>
     </div>
-    <div class="brand"><span class="emoji">🎾</span><h1>PZT Rankingi</h1></div>
+    <div class="brand"><img class="logo" src="znak.svg" alt="" width="40" height="40"><h1>PZT Rankingi</h1></div>
     <p class="subtitle">Offline Android app for Polish Tennis Association (PZT) rankings — technical documentation.</p>
   </div>
 </header>
@@ -46,6 +49,33 @@
   <p>
     <span class="pill">No cloud backend</span> Every data fetch and every piece of app state lives entirely on the
     phone. There is no server this app talks to other than PZT's own public website.
+  </p>
+
+  <h2 id="ui">Interface and usage</h2>
+  <p>
+    The app keeps the home screen clean and uses one consistent navigation. It is designed for one-handed,
+    thumb-reach use.
+  </p>
+  <table>
+    <tr><th>Element</th><th>How it works</th></tr>
+    <tr><td>Floating tab bar (bottom of the screen)</td><td>Classic mode: <strong>Home, Ranking, Favourites, Search, Calendar, Settings</strong>. The active tab is shown as a "pill". The bar hides while the on-screen keyboard is open and stays clear of Android's system navigation bar.</td></tr>
+    <tr><td>Side menu (☰ button, top left)</td><td>Player search, quick access to downloading data and choosing the default category, and the theme switch. A dot on the button means new rankings are available. Closes by tapping the background, the ✕ button, swiping left, or the phone's Back button.</td></tr>
+    <tr><td>Light and dark theme</td><td>Switched from the header or the side menu and remembered on the device. The start-up loading screen uses the colours of the chosen theme.</td></tr>
+    <tr><td>Phone Back button</td><td>First closes open overlays (menu, tournament preview, "What's new"), then returns to the previous screen (e.g. from a player profile back to the list it was opened from), and only exits the app from the home screen.</td></tr>
+    <tr><td>Settings</td><td>Collapsible sections with a one-line status: default category, rankings archive (export/import), private data, app mode, about.</td></tr>
+    <tr><td>Age-category colours</td><td>U12 gold, U14 green, U16 blue, U18 purple, Senior red — fixed throughout the app and independent of the theme.</td></tr>
+    <tr><td>"What's new"</td><td>After an update the app shows only the user-visible changes between the previously installed version and the new one. It does not appear on a fresh install.</td></tr>
+  </table>
+  <h3>Accessibility</h3>
+  <p>
+    Touch targets are at least 44 px, icon buttons carry labels for screen readers, keyboard focus is visible, and when
+    the phone's "remove animations" option is on, the app drops sliding windows and smooth transitions (loading
+    indicators stay). Search works by surname regardless of Polish diacritics.
+  </p>
+  <h3>On-device data and updates</h3>
+  <p>
+    Favourite players, the theme and the default category are stored on the phone and <strong>survive app updates</strong>.
+    Rankings and other data are stored separately and are likewise left untouched by updates.
   </p>
 
   <h2 id="architecture">Architecture</h2>
