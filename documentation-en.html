@@ -167,9 +167,10 @@
 
   <h3>Versioning</h3>
   <p>
-    <code>versionCode</code> (the number Android uses to decide whether a build is an upgrade) equals GitHub's
+    <code>versionCode</code> (the number Android uses to decide whether a build is an upgrade) is 90000 plus GitHub's
     workflow run number for the build workflow — a monotonically increasing integer, one per triggered run. This
     guarantees every release strictly increases the version, so installing a new APK always upgrades in place.
+    The version shown to users (e.g. "v38") is just the run number.
   </p>
 
   <h3>Local development</h3>
